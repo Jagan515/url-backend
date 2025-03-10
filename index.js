@@ -40,6 +40,10 @@ app.post('/api/shorten', async (req, res) => {
   const qrCode = await QRCode.toDataURL(shortUrl);
   res.json({ shortUrl, qrCode });
 });
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
+});
+
 
 app.get('/:shortId', async (req, res) => {
   const { shortId } = req.params;
