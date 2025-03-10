@@ -1,24 +1,22 @@
-const express = require("express");
-const mongoose = require("mongoose");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const nanoid = require("nanoid/non-secure"); // Fixed for CommonJS
-const QRCode = require("qrcode");
+import dotenv from "dotenv";
+import express from "express";
+import mongoose from "mongoose";
+import { nanoid } from "nanoid";
+import QRCode from "qrcode";
+import cors from "cors";
 
+// Load environment variables
 dotenv.config();
 const app = express();
-
-app.use(cors());
 app.use(express.json());
-app.use((req, res, next) => {
-    res.setHeader("Permissions-Policy", "interest-cohort=()");
-    next();
-});
+app.use(cors());
 
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ MongoDB connected"))
-    .catch(err => console.error("❌ MongoDB connection error:", err));
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch(err => console.error("❌ MongoDB connection error:", err));
 
+// URL Schema
 const urlSchema = new mongoose.Schema({
     originalUrl: String,
     shortId: String,
@@ -26,9 +24,9 @@ const urlSchema = new mongoose.Schema({
 });
 const Url = mongoose.model("Url", urlSchema);
 
+// API to create a short URL
 app.post("/api/shorten", async (req, res) => {
     const { originalUrl, customAlias } = req.body;
-    let shortId = customAlias || nanoid(6); // nanoid() now works
 
     try {
         if (customAlias) {
@@ -41,15 +39,18 @@ app.post("/api/shorten", async (req, res) => {
         const url = new Url({ originalUrl, shortId });
         await url.save();
 
-        const shortUrl = `${req.protocol}://${req.get("host")}/${shortId}`;
-        const qrCode = await QRCode.toDataURL(shortUrl);
-        res.json({ shortUrl, qrCode });
-    } catch (err) {
-        console.error("❌ Error shortening URL:", err);
-        res.status(500).json({ error: "Something went wrong!" });
-    }
+    // Generate QR code
+    const shortUrl = `http://localhost:5000/${shortId}`;
+    const qrCode = await QRCode.toDataURL(shortUrl);
+
+    res.json({ shortUrl, qrCode });
+  } catch (error) {
+    console.error("❌ Error creating short URL:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
+// Redirect short URL to original
 app.get("/:shortId", async (req, res) => {
     const { shortId } = req.params;
     try {
@@ -65,8 +66,6 @@ app.get("/:shortId", async (req, res) => {
     }
 });
 
-app.get("/", (req, res) => {
-    res.send("URL Shortener API is running...");
-});
-
-module.exports = app;
+// Start Server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
