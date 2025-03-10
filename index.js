@@ -2,13 +2,12 @@ const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { nanoid } = require("nanoid");
+const nanoid = require("nanoid/non-secure"); // Fixed for CommonJS
 const QRCode = require("qrcode");
 
 dotenv.config();
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
@@ -16,12 +15,10 @@ app.use((req, res, next) => {
     next();
 });
 
-// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ MongoDB connected"))
     .catch(err => console.error("❌ MongoDB connection error:", err));
 
-// URL Schema
 const urlSchema = new mongoose.Schema({
     originalUrl: String,
     shortId: String,
@@ -29,10 +26,9 @@ const urlSchema = new mongoose.Schema({
 });
 const Url = mongoose.model("Url", urlSchema);
 
-// Shorten URL Route
 app.post("/api/shorten", async (req, res) => {
     const { originalUrl, customAlias } = req.body;
-    let shortId = customAlias || nanoid(6);
+    let shortId = customAlias || nanoid(6); // nanoid() now works
 
     try {
         if (customAlias) {
@@ -54,7 +50,6 @@ app.post("/api/shorten", async (req, res) => {
     }
 });
 
-// Redirect Route
 app.get("/:shortId", async (req, res) => {
     const { shortId } = req.params;
     try {
@@ -70,7 +65,6 @@ app.get("/:shortId", async (req, res) => {
     }
 });
 
-// Default Route
 app.get("/", (req, res) => {
     res.send("URL Shortener API is running...");
 });
