@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const QRCode = require("qrcode");
-const { v4: uuidv4 } = require("uuid"); // ✅ Replaced nanoid with uuid
+const { v4: uuidv4 } = require("uuid");
 
 dotenv.config();
 const app = express();
 
-// ✅ Fix: Allow frontend access via CORS
+// ✅ Allow frontend access via CORS
 app.use(cors({ origin: "https://jagan515.github.io" }));
 app.use(express.json());
 
@@ -29,28 +29,44 @@ mongoose.connect(process.env.MONGODB_URI)
 const urlSchema = new mongoose.Schema({
     originalUrl: String,
     shortId: String,
-    customAlias: String,
 });
 const Url = mongoose.model("Url", urlSchema);
 
+// ✅ Function to format alias
+const formatAlias = (alias) => {
+    return alias.trim().toLowerCase()      // Remove leading/trailing spaces & convert to lowercase
+                .replace(/\s+/g, "-")      // Replace spaces with "-"
+                .replace(/[^a-z0-9-]/g, ""); // Remove special characters except "-"
+};
+
+// ✅ Function to generate unique alias
+const generateUniqueAlias = async (baseAlias) => {
+    let alias = baseAlias;
+    let counter = 1;
+
+    while (await Url.findOne({ shortId: alias })) {
+        alias = `${baseAlias}-${counter}`;
+        counter++;
+    }
+    return alias;
+};
+
 // ✅ Shorten URL Route
 app.post("/api/shorten", async (req, res) => {
-    const { originalUrl, customAlias } = req.body;
-    let shortId = customAlias || uuidv4().slice(0, 6); // ✅ Using uuid and slicing to match nanoid length
-
+    let { originalUrl, customAlias } = req.body;
+    
     try {
+        let shortId = customAlias ? formatAlias(customAlias) : uuidv4().slice(0, 6);
+        
         if (customAlias) {
-            const existing = await Url.findOne({ shortId: customAlias });
-            if (existing) {
-                return res.status(400).json({ error: "Alias already taken" });
-            }
+            shortId = await generateUniqueAlias(shortId);
         }
 
         const url = new Url({ originalUrl, shortId });
         await url.save();
 
         const shortUrl = `${req.protocol}://${req.get("host")}/${shortId}`;
-        const qrCode = await QRCode.toDataURL(shortUrl); // ✅ QR Code generation
+        const qrCode = await QRCode.toDataURL(shortUrl);
 
         res.json({ shortUrl, qrCode });
     } catch (err) {
