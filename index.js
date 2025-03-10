@@ -20,6 +20,9 @@ const urlSchema = new mongoose.Schema({
   customAlias: String,
 });
 const Url = mongoose.model('Url', urlSchema);
+app.get("/", (req, res) => {
+  res.send("URL Shortener API is running...");
+});
 
 app.post('/api/shorten', async (req, res) => {
   const { originalUrl, customAlias } = req.body;
